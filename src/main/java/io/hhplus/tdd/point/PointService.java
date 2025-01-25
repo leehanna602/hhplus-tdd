@@ -5,7 +5,8 @@ import io.hhplus.tdd.database.UserPointTable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.concurrent.locks.Lock;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 
 @Service
@@ -13,7 +14,7 @@ public class PointService {
 
     private final UserPointTable userPointTable;
     private final PointHistoryTable pointHistoryTable;
-    private final Lock lock = new ReentrantLock();
+    private final Map<Long, ReentrantLock> userLocks = new ConcurrentHashMap<>();
     private static final long maxPoint = 1000000;
 
     public PointService(UserPointTable userPointTable, PointHistoryTable pointHistoryTable) {
@@ -30,7 +31,9 @@ public class PointService {
     }
 
     public UserPoint transaction(long id, long amount, TransactionType type) {
+        ReentrantLock lock = userLocks.computeIfAbsent(id, k -> new ReentrantLock());
         lock.lock();
+
         try {
             UserPoint userPoint = userPointTable.selectById(id);
             long currentAmount = userPoint.point();
